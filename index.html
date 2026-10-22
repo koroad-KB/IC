@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+<meta charset="utf-8">
+
+<title>인천장비</title>
+
+<style>
+
+html, body, #map {
+    width:100%;
+    height:100%;
+    margin:0;
+}
+#skyBtn{
+    position:absolute;
+    right:145px;
+    bottom:20px;
+    width:55px;
+    height:55px;
+    border:none;
+    border-radius:50%;
+    background:white;
+    font-size:13px;
+    font-weight:bold;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+    z-index:999;
+}
+
+#distanceBtn{
+    position:absolute;
+    right:80px;
+    bottom:20px;
+    width:55px;
+    height:55px;
+    border:none;
+    border-radius:50%;
+    background:white;
+    font-size:13px;
+    font-weight:bold;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+    z-index:999;
+}
+
+#distanceBox{
+    display:none;
+    position:absolute;
+    right:15px;
+    bottom:85px;
+    background:white;
+    padding:10px 14px;
+    border-radius:8px;
+    font-size:14px;
+    font-weight:bold;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+    z-index:999;
+}
+#gpsBtn{
+    position:absolute;
+    right:15px;
+    bottom:20px;
+    width:55px;
+    height:55px;
+    border-radius:50%;
+    border:none;
+    background:white;
+    font-size:24px;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+    z-index:999;
+}
+
+  
+#searchBox{
+    position:absolute;
+    top:10px;
+    left:10px;
+    width:220px;
+    height:40px;
+    font-size:18px;
+    padding-left:10px;
+    z-index:999;
+}
+
+#searchBtn{
+    position:absolute;
+    top:10px;
+    left:240px;
+    height:44px;
+    font-size:16px;
+    z-index:999;
+}
+#coordBox{
+    display:none;
+    position:absolute;
+    bottom:20px;
+    left:10px;
+    background:white;
+    padding:10px;
+    border-radius:8px;
+    font-size:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+    z-index:999;
+    min-width:180px;
+}
+
+#copyBtn{
+    display:none;
+    position:absolute;
+    bottom:90px;
+    left:10px;
+    padding:8px 14px;
+    border:none;
+    border-radius:8px;
+    background:#1976d2;
+    color:white;
+    font-size:14px;
+    z-index:999;
+  }
+
+  #coordBtn{
+    position:absolute;
+    bottom:150px;
+    left:10px;
+    width:55px;
+    height:55px;
+    border:none;
+    border-radius:50%;
+    background:white;
+    font-size:24px;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+    z-index:999;
+}
+
+  #allBtn{
+    position:absolute;
+    top:10px;
+    left:310px;
+    height:44px;
+    padding:0 12px;
+    font-size:16px;
+    font-weight:bold;
+    background:white;
+    border:1px solid #aaa;
+    border-radius:5px;
+    z-index:999;
+    box-shadow:0 2px 5px rgba(0,0,0,.2);
+}
+  
+</style>
+
+</head>
+
+<body>
+
+  <button id="coordBtn">
+📌
+</button>
+  
+<div id="coordBox">
+    위도 : -<br>
+    경도 : -
+</div>
+
+ 
+  
+<button id="copyBtn">
+📋
+</button>
+  
+<div id="map"></div>
+
+<input
+    id="searchBox"
+    type="text"
+    inputmode="search"
+    enterkeyhint="search"
+    autocomplete="off"
+    placeholder="장비 검색">
+
+<button id="searchBtn">
+    검색
+</button>
+
+<button id="allBtn">
+    전체
+</button>
+<button id="skyBtn">
+✈️
+</button>
+
+<button id="distanceBtn">
+📏
+</button>
+
+<div id="distanceBox">
+거리 : 0 m
+</div>
+
+<button id="gpsBtn">
+📍
+</button>
+  
+
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=e734ddc57a7600ac7cfdf25c031a474d&libraries=clusterer,services"></script>
+
+<script>
+let currentInfoWindow = null;  
+let signalData = [];
+let markers = [];
+let overlays = [];
+let zoomPins = [];
+let clusterer = null;
+  let selectedGroup = null;
+  
+
+let clickMarker = null;
+let clickLat = "";
+let clickLng = "";
+let coordMode = false;
+  
+const map = new kakao.maps.Map(
+    document.getElementById("map"),
+    {
+        center: new kakao.maps.LatLng(37.4563, 126.7052),
+        level: 8
+    }
+);
+kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
+    if(currentInfoWindow){
+        currentInfoWindow.close();
+        currentInfoWindow = null;
+    }
+  if(!coordMode){
+    return;
+}
+coordMode = false;
+
+document.getElementById("coordBtn").style.background="white";
+document.getElementById("coordBtn").innerHTML="📍";
+document.getElementById("copyBtn").style.display="block";
+    const latlng = mouseEvent.latLng;
+
+    clickLat = latlng.getLat().toFixed(6);
+    clickLng = latlng.getLng().toFixed(6);
+  
+      document.getElementById("coordBox").innerHTML =
+        "위도 : " + clickLat +
+        "<br>경도 : " + clickLng;
+  document.getElementById("coordBox").style.display = "block";
+
+    if(clickMarker){
+        clickMarker.setMap(null);
+    }
+
+    clickMarker = new kakao.maps.Marker({
+        map: map,
+        position: latlng
+    });
+});
+
+// 구글 스프레드시트에서 장비 데이터를 불러옵니다.
+function renderDevices(data) {
+    // 기존 지도 객체를 정리해 중복 표시를 방지합니다.
+    if (clusterer) clusterer.clear();
+    markers.forEach(marker => marker.setMap(null));
+    overlays.forEach(overlay => overlay.setMap(null));
+    zoomPins.forEach(marker => marker.setMap(null));
+    markers = [];
+    overlays = [];
+    zoomPins = [];
+
+    data.forEach(function(item) {
+        const lat = Number(item.lat);
+        const lng = Number(item.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) ||
+            lat < 33 || lat > 39 || lng < 124 || lng > 132) {
+            console.warn("좌표가 올바르지 않아 제외한 장비:", item);
+            return;
+        }
+
+        const position = new kakao.maps.LatLng(lat, lng);
+
+        // 장비종류 필드가 어떤 이름으로 전달되더라도 색상을 구분할 수 있도록
+        // 장비종류 관련 필드를 합쳐 판별합니다. 업체명(item.name)은 종류 판별에서 제외합니다.
+        const deviceTypeText = [
+            item.deviceType, item.region, item.type, item.kind,
+            item.category, item.equipmentType, item.device_type
+        ].filter(value => value !== null && value !== undefined && String(value).trim() !== "")
+         .map(value => String(value).trim().toLowerCase())
+         .join(" ");
+
+        let deviceColor = "#000000"; // 속도 장비: 검은색(기본값)
+        if (deviceTypeText.includes("양방향") || deviceTypeText.includes("양 방향")) {
+            deviceColor = "#1677ff"; // 양방향단속: 파란색
+        } else if (deviceTypeText.includes("구간")) {
+            deviceColor = "#16803c"; // 구간장비: 녹색
+        } else if (deviceTypeText.includes("신호")) {
+            deviceColor = "#c49a00"; // 신호장비: 노란색(흰 배경에서 잘 보이도록 진한 노랑)
+        } else if (deviceTypeText.includes("속도") || deviceTypeText.includes("과속")) {
+            deviceColor = "#000000"; // 속도 장비: 검은색
+        }
+
+        const addressFields = [item.address, item.addr, item.installAddress, item.location, item.roadAddress, item.installationAddress];
+        const deviceAddress = addressFields.find(value => value !== null && value !== undefined && String(value).trim() !== "") || "";
+        const nameDiv = document.createElement("div");
+        nameDiv.style.cssText = "background:white;border:1px solid #777;border-radius:5px;padding:4px 8px;font-size:13px;font-weight:bold;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;";
+        const codeSpan = document.createElement("span");
+        codeSpan.textContent = item.code || "";
+        codeSpan.style.color = deviceColor;
+        const addressSpan = document.createElement("span");
+        addressSpan.textContent = deviceAddress ? ` · ${deviceAddress}` : (item.group ? ` (${item.group})` : "");
+        addressSpan.style.color = deviceColor;
+        // 노란색 장비 표기도 흰 배경에서 읽을 수 있도록 얇은 어두운 그림자를 적용
+        if (deviceColor === "#d6a800") {
+            codeSpan.style.textShadow = addressSpan.style.textShadow = "0 0 1px #777";
+        }
+        nameDiv.append(codeSpan, addressSpan);
+
+        const overlay = new kakao.maps.CustomOverlay({
+            position: position,
+            xAnchor: 0.5,
+            yAnchor: 0.5,
+            clickable: true,
+            content: nameDiv
+        });
+        overlay.setMap(map);
+        overlays.push(overlay);
+
+        const escapeHtml = value => String(value ?? "-").replace(/[&<>"']/g, ch => ({
+            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        }[ch]));
+        const infoContent = document.createElement("div");
+        infoContent.style.cssText = "padding:12px;font-size:14px;line-height:1.7;min-width:220px;";
+        const infoTitle = document.createElement("div");
+        infoTitle.style.cssText = "font-size:17px;font-weight:bold;margin-bottom:8px;border-bottom:1px solid #ddd;padding-bottom:6px;";
+        infoTitle.textContent = `${item.code || ""}(${item.group || ""})`;
+        infoContent.appendChild(infoTitle);
+        const infoDetails = document.createElement("div");
+        // ISO 형식 날짜의 T 뒤에 붙는 시간·시간대 문자열은 숨기고 날짜만 표시
+        const formatDateDisplay = value => {
+            if (value === null || value === undefined || value === "") return "-";
+            const text = String(value).trim();
+            const isoDate = text.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+            if (isoDate) return `${isoDate[1]}-${isoDate[2]}-${isoDate[3]}`;
+            return text;
+        };
+        const rows = [
+            ["업체명", item.name],
+            ["장비종류", item.deviceType ?? item.region],
+            ["단속속도", item.speed ?? item.local],
+            ["검지방식", item.detectionMethod ?? item.police],
+            ["보호구역", item.protectedArea],
+            ["최초운영일", item.operationDate ?? item.smart]
+        ];
+        infoDetails.innerHTML = rows.map(([label, value]) => {
+            const displayValue = label === "최초운영일" ? formatDateDisplay(value) : (value || "-");
+            return `<b>${label}</b> : ${escapeHtml(displayValue)}`;
+        }).join("<br>");
+        infoContent.appendChild(infoDetails);
+
+        const actionRow = document.createElement("div");
+        actionRow.style.cssText = "display:flex;gap:6px;margin-top:12px;";
+        const routeButton = document.createElement("button");
+        routeButton.type = "button";
+        routeButton.textContent = "🧭 길찾기";
+        routeButton.style.cssText = "flex:1;padding:7px;background:#FEE500;border:none;border-radius:6px;font-size:11px;font-weight:bold;cursor:pointer;";
+        routeButton.addEventListener("click", () => routeTo(lat, lng, String(item.name || "장비")));
+        const roadButton = document.createElement("button");
+        roadButton.type = "button";
+        roadButton.textContent = "📷 로드뷰";
+        roadButton.style.cssText = "flex:1;padding:7px;background:#4CAF50;color:white;border:none;border-radius:6px;font-size:11px;font-weight:bold;cursor:pointer;";
+        roadButton.addEventListener("click", () => roadView(lat, lng));
+        actionRow.append(routeButton, roadButton);
+        infoContent.appendChild(actionRow);
+
+        const infowindow = new kakao.maps.InfoWindow({ content: infoContent });
+        const openInfo = function(event) {
+            if (event && typeof event.stopPropagation === "function") event.stopPropagation();
+            if (currentInfoWindow) currentInfoWindow.close();
+            infowindow.setPosition(position);
+            infowindow.open(map);
+            currentInfoWindow = infowindow;
+        };
+        nameDiv.addEventListener("click", openInfo);
+
+        // 실제 좌표에 투명 마커를 두어 클러스터링과 클릭을 지원합니다.
+        const transparentImage = new kakao.maps.MarkerImage(
+            "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",
+            new kakao.maps.Size(1, 1)
+        );
+        const marker = new kakao.maps.Marker({
+            position: position,
+            image: transparentImage,
+            clickable: true
+        });
+        kakao.maps.event.addListener(marker, "click", openInfo);
+        markers.push(marker);
+
+        // 5~6단계에서는 장비번호 대신 위치를 알아볼 수 있는 핀을 표시
+        const zoomPin = new kakao.maps.Marker({
+            position: position,
+            clickable: true,
+            zIndex: 5
+        });
+        kakao.maps.event.addListener(zoomPin, "click", openInfo);
+        zoomPins.push(zoomPin);
+    });
+
+    if (!clusterer) {
+        clusterer = new kakao.maps.MarkerClusterer({
+            map: map,
+            averageCenter: true,
+            minLevel: 7
+        });
+    }
+    clusterer.clear();
+    clusterer.addMarkers(markers);
+    updateOverlayVisible();
+    kakao.maps.event.removeListener(map, "zoom_changed", updateOverlayVisible);
+    kakao.maps.event.addListener(map, "zoom_changed", updateOverlayVisible);
+}
+
+fetch("https://script.google.com/macros/s/AKfycbzht6ww3-miWPtjrrZhPF4omrzQ9nig_EdKjQqlVZ0uDGbX0SxJ5DleCQy2MHM0tVZnDw/exec")
+    .then(response => {
+        if (!response.ok) throw new Error("HTTP 오류: " + response.status);
+        return response.json();
+    })
+    .then(data => {
+        if (!Array.isArray(data)) {
+            throw new Error(data?.error || "장비 데이터 형식이 올바르지 않습니다.");
+        }
+        // 이후 검색·표시 함수에서 사용하는 데이터 목록
+        signalData = data.filter(item => {
+            const lat = Number(item.lat), lng = Number(item.lng);
+            return Number.isFinite(lat) && Number.isFinite(lng) &&
+                   lat >= 33 && lat <= 39 && lng >= 124 && lng <= 132;
+        });
+        renderDevices(signalData);
+        console.info(`장비 데이터 ${signalData.length}건을 불러왔습니다.`);
+    })
+    .catch(error => {
+        console.error("장비 데이터 불러오기 실패:", error);
+        const errorBox = document.createElement("div");
+        errorBox.style.cssText = "position:absolute;top:65px;left:10px;right:10px;z-index:2000;background:#fff3f3;color:#9b1c1c;padding:12px;border:1px solid #e0a0a0;border-radius:8px;font-size:14px;";
+        errorBox.textContent = "장비 정보를 불러오지 못했습니다. 구글 스프레드시트 웹 앱 배포 상태와 데이터 연결을 확인해 주세요.";
+        document.body.appendChild(errorBox);
+    });
+
+let myLocationMarker = null;
+
+
+// ========================================
+// 신호기 이름 표시 여부
+// 5단계 이상 → 이름 숨김
+// 4단계 이하 → 이름 표시
+// ========================================
+
+function updateOverlayVisible(){
+    const level = map.getLevel();
+
+    overlays.forEach(function(overlay, index){
+        const item = signalData[index];
+        const groupMatches = selectedGroup === null || (
+            item && String(item.group || "").trim().toUpperCase() === selectedGroup
+        );
+
+        // 장비명은 충분히 확대한 4단계 이하에서만 표시
+        if (groupMatches && level <= 4) {
+            overlay.setMap(map);
+        } else {
+            overlay.setMap(null);
+        }
+
+        // 5~6단계에서는 이름 대신 핀으로 위치를 표시
+        const pin = zoomPins[index];
+        if (pin && groupMatches && level >= 5 && level <= 6) {
+            pin.setMap(map);
+        } else if (pin) {
+            pin.setMap(null);
+        }
+    });
+}
+  
+document.getElementById("gpsBtn").onclick = function(){
+
+    if(!navigator.geolocation){
+
+        alert("현재 위치를 사용할 수 없습니다.");
+        return;
+
+    }
+
+    const gpsBtn = this;
+
+    // 누르는 즉시 버튼 표시 변경
+    gpsBtn.style.background = "#E3F2FD";
+    gpsBtn.innerHTML = "⏳";
+
+    navigator.geolocation.getCurrentPosition(
+
+        function(position){
+
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            const loc = new kakao.maps.LatLng(lat, lng);
+
+            // 기존 위치 마커 제거
+            if(myLocationMarker){
+                myLocationMarker.setMap(null);
+            }
+
+            // 현재 위치 표시
+            myLocationMarker = new kakao.maps.Marker({
+                map: map,
+                position: loc
+            });
+
+            // 지도 이동
+            map.setCenter(loc);
+            map.setLevel(3);
+
+            // 버튼 원래대로
+            gpsBtn.style.background = "white";
+            gpsBtn.innerHTML = `
+                <svg viewBox="0 0 64 64" width="38" height="38">
+                    <circle cx="32" cy="32" r="18"
+                            fill="none"
+                            stroke="#1976D2"
+                            stroke-width="3"/>
+
+                    <line x1="32" y1="10" x2="32" y2="21"
+                          stroke="#1976D2"
+                          stroke-width="3"
+                          stroke-linecap="round"/>
+
+                    <line x1="32" y1="43" x2="32" y2="54"
+                          stroke="#1976D2"
+                          stroke-width="3"
+                          stroke-linecap="round"/>
+
+                    <line x1="10" y1="32" x2="21" y2="32"
+                          stroke="#1976D2"
+                          stroke-width="3"
+                          stroke-linecap="round"/>
+
+                    <line x1="43" y1="32" x2="54" y2="32"
+                          stroke="#1976D2"
+                          stroke-width="3"
+                          stroke-linecap="round"/>
+
+                    <circle cx="32" cy="32" r="4"
+                            fill="#1976D2"/>
+                </svg>
+            `;
+
+        },
+
+        function(error){
+
+            gpsBtn.style.background = "white";
+            gpsBtn.innerHTML = "📍";
+
+            if(error.code === 1){
+                alert("위치 정보 사용이 차단되어 있습니다.");
+            }
+            else if(error.code === 2){
+                alert("현재 위치를 확인할 수 없습니다.");
+            }
+            else if(error.code === 3){
+                alert("현재 위치 확인 시간이 초과되었습니다.");
+            }
+            else{
+                alert("현재 위치를 확인할 수 없습니다.");
+            }
+
+        },
+
+        {
+            enableHighAccuracy: false,
+            timeout: 30000,
+            maximumAge: 60000
+        }
+
+    );
+
+};
+document.getElementById("searchBtn").onclick = function(){
+
+    const searchBox = document.getElementById("searchBox");
+    const keyword = searchBox.value.trim();
+
+    if(keyword === ""){
+        searchBox.blur();
+        return;
+    }
+
+
+    // =========================================
+    // ① 신호군 검색
+    // 예 : 996G
+    // =========================================
+
+    const groupResults = signalData.filter(function(item){
+
+        return String(item.group || "")
+            .trim()
+            .toUpperCase() === keyword.toUpperCase();
+
+    });
+
+
+    if(groupResults.length > 0){
+
+        selectedGroup = keyword.toUpperCase();
+
+        if(clusterer){
+            clusterer.clear();
+        }
+
+        // 모든 마커 숨기기
+        markers.forEach(function(marker){
+            marker.setMap(null);
+        });
+
+        // 모든 이름 숨기기
+        overlays.forEach(function(overlay){
+            overlay.setMap(null);
+        });
+
+
+        // 검색된 신호군만 표시
+        const groupMarkers = [];
+
+        groupResults.forEach(function(item){
+
+            const index = signalData.indexOf(item);
+
+            if(index !== -1){
+
+                if(markers[index]){
+                    markers[index].setMap(map);
+                    groupMarkers.push(markers[index]);
+                }
+
+                if(overlays[index]){
+                    overlays[index].setMap(map);
+                }
+
+            }
+
+        });
+
+
+        // 검색된 신호군만 클러스터링
+        if(clusterer){
+            clusterer.addMarkers(groupMarkers);
+        }
+
+
+        // 신호군 전체가 보이도록
+        const bounds = new kakao.maps.LatLngBounds();
+
+        groupResults.forEach(function(item){
+
+            bounds.extend(
+                new kakao.maps.LatLng(
+                    Number(item.lat),
+                    Number(item.lng)
+                )
+            );
+
+        });
+
+        map.setBounds(bounds);
+
+
+        // 너무 넓게 잡히면 확대
+        setTimeout(function(){
+
+            if(map.getLevel() > 6){
+                map.setLevel(6);
+            }
+
+            // 현재 확대 수준에 따라 장비명 표시 여부를 결정
+            updateOverlayVisible();
+
+        }, 100);
+
+
+        searchBox.value = "";
+        searchBox.blur();
+
+        return;
+    }
+
+
+
+    // =========================================
+    // ② 일반 신호기 검색
+    // 예 : 4005
+    // =========================================
+
+    const item = signalData.find(function(x){
+
+        return (
+
+            String(x.code || "")
+                .trim()
+                .includes(keyword) ||
+
+            String(x.name || "")
+                .trim()
+                .includes(keyword)
+
+        );
+
+    });
+
+
+    if(item){
+
+        // 검색 상태 해제
+        selectedGroup = null;
+
+        if(clusterer){
+            clusterer.clear();
+        }
+
+
+        // 모든 마커 표시
+        markers.forEach(function(marker){
+            marker.setMap(map);
+        });
+
+
+        // 전체 클러스터링
+        if(clusterer){
+            clusterer.addMarkers(markers);
+        }
+
+
+        // 이름 표시
+        updateOverlayVisible();
+
+
+        // 검색된 신호기로 이동
+        const position = new kakao.maps.LatLng(
+            Number(item.lat),
+            Number(item.lng)
+        );
+
+        // 검색한 장비를 지도 중앙에 놓고 최대 확대(카카오 지도 레벨 1)
+        // 확대와 중심 이동을 함께 지정하고, 지도 이동 애니메이션 이후 중앙을 한 번 더 맞춥니다.
+        map.setLevel(1, { anchor: position });
+        map.setCenter(position);
+        setTimeout(function(){
+            map.setCenter(position);
+            map.setLevel(1);
+            updateOverlayVisible();
+        }, 250);
+
+        searchBox.value = "";
+        searchBox.blur();
+
+        return;
+    }
+
+
+
+    // =========================================
+    // ③ 여기부터 주소 / 지번 / 장소 검색
+    // =========================================
+
+    // 신호군 / 신호기 검색이 아니므로
+    // 전체 상태로 변경
+    selectedGroup = null;
+
+
+    if(clusterer){
+        clusterer.clear();
+    }
+
+
+    // 모든 신호기 표시
+    markers.forEach(function(marker){
+        marker.setMap(map);
+    });
+
+
+    if(clusterer){
+        clusterer.addMarkers(markers);
+    }
+
+
+    updateOverlayVisible();
+
+
+
+    // =========================================
+    // ④ 주소 검색 객체
+    // =========================================
+
+    const geocoder = new kakao.maps.services.Geocoder();
+
+
+    // =========================================
+    // ⑤ 먼저 주소 검색
+    // 도로명주소 / 지번주소
+    // =========================================
+
+    geocoder.addressSearch(
+        keyword,
+
+        function(result, status){
+
+            if(status === kakao.maps.services.Status.OK){
+
+                const lat = Number(result[0].y);
+                const lng = Number(result[0].x);
+
+                const position =
+                    new kakao.maps.LatLng(lat, lng);
+
+
+                // 지도 이동
+                map.setCenter(position);
+
+                // 주소 검색은 조금 확대
+                map.setLevel(4);
+
+
+                // 검색 위치 표시
+                showSearchMarker(
+                    position,
+                    keyword
+                );
+
+
+                searchBox.value = "";
+                searchBox.blur();
+
+                return;
+            }
+
+
+            // =====================================
+            // ⑥ 주소 검색 실패
+            // → 장소 검색으로 넘어감
+            // =====================================
+
+            const places =
+                new kakao.maps.services.Places();
+
+
+            places.keywordSearch(
+                keyword,
+
+                function(result, status){
+
+                    if(
+                        status ===
+                        kakao.maps.services.Status.OK
+                    ){
+
+                        const place = result[0];
+
+                        const position =
+                            new kakao.maps.LatLng(
+                                Number(place.y),
+                                Number(place.x)
+                            );
+
+
+                        // 지도 이동
+                        map.setCenter(position);
+
+                        map.setLevel(4);
+
+
+                        // 검색 위치 표시
+                        showSearchMarker(
+                            position,
+                            place.place_name
+                        );
+
+
+                        searchBox.value = "";
+                        searchBox.blur();
+
+                        return;
+
+                    }
+
+
+                    // =================================
+                    // ⑦ 전부 검색 실패
+                    // =================================
+
+                    alert(
+                        "검색 결과가 없습니다.\n\n" +
+                        "신호기 번호, 신호군, 주소,\n" +
+                        "지번 또는 장소명을 입력해 주세요."
+                    );
+
+                    searchBox.blur();
+
+                }
+
+            );
+
+        }
+
+    );
+
+};
+let searchMarker = null;
+let searchInfoWindow = null;
+
+function showSearchMarker(position, title){
+
+    // 기존 검색 마커 제거
+    if(searchMarker){
+        searchMarker.setMap(null);
+    }
+
+    // 기존 검색 인포윈도우 제거
+    if(searchInfoWindow){
+        searchInfoWindow.close();
+    }
+
+    // 검색 위치 마커
+    searchMarker = new kakao.maps.Marker({
+        map: map,
+        position: position
+    });
+
+    // 검색 결과 정보창
+    searchInfoWindow = new kakao.maps.InfoWindow({
+
+        content:
+            '<div style="' +
+            'padding:8px 12px;' +
+            'font-size:13px;' +
+            'font-weight:bold;' +
+            'white-space:nowrap;' +
+            '">' +
+            title +
+            '</div>'
+
+    });
+
+    searchInfoWindow.open(
+        map,
+        searchMarker
+    );
+}
+
+
+
+// ========================================
+// 모바일 키보드 제어
+// 검색창을 직접 눌렀을 때만 키보드를 열고,
+// 지도 조작(터치/확대·축소) 중에는 검색창 포커스를 해제합니다.
+// ========================================
+const searchInput = document.getElementById("searchBox");
+const mapElement = document.getElementById("map");
+
+function dismissSearchKeyboard(){
+    if (document.activeElement === searchInput) {
+        searchInput.blur();
+    }
+}
+
+// 지도를 터치하거나 드래그하기 시작하면 키보드 닫기
+mapElement.addEventListener("touchstart", dismissSearchKeyboard, { passive: true });
+mapElement.addEventListener("pointerdown", function(e){
+    if (e.pointerType === "touch") dismissSearchKeyboard();
+}, { passive: true });
+
+// 지도 확대/축소가 발생했을 때도 포커스가 남아 있으면 해제
+kakao.maps.event.addListener(map, "zoom_changed", dismissSearchKeyboard);
+
+// ========================================
+// Enter 키 검색
+// ========================================
+
+document.getElementById("searchBox")
+.addEventListener("keydown", function(e){
+
+    if(e.key === "Enter"){
+
+        e.preventDefault();
+
+        document.getElementById("searchBtn").click();
+
+        this.blur();
+
+    }
+
+});
+
+
+
+// ========================================
+// 전체 버튼
+// ========================================
+
+document.getElementById("allBtn").onclick = function(){
+  
+      // ========================================
+    // ⭐ 주소/장소 검색 결과 제거
+    // ========================================
+
+    if(searchMarker){
+        searchMarker.setMap(null);
+        searchMarker = null;
+    }
+
+    if(searchInfoWindow){
+        searchInfoWindow.close();
+        searchInfoWindow = null;
+    }
+
+
+    // ⭐ 신호군 검색 상태 해제
+    selectedGroup = null;
+
+    // 현재 지도 상태 저장
+    const currentCenter = map.getCenter();
+    const currentLevel = map.getLevel();
+
+    // 현재 열려있는 정보창 닫기
+    if(currentInfoWindow){
+        currentInfoWindow.close();
+        currentInfoWindow = null;
+    }
+
+    // 기존 클러스터 제거
+    if(clusterer){
+        clusterer.clear();
+    }
+
+    // 모든 마커 표시
+    markers.forEach(function(marker){
+        marker.setMap(map);
+    });
+
+    // 전체 마커 다시 클러스터링
+    if(clusterer){
+        clusterer.addMarkers(markers);
+    }
+
+    // ⭐ 검색 전의 지도 위치와 확대 수준 그대로 유지
+    map.setCenter(currentCenter);
+    map.setLevel(currentLevel);
+
+    // ⭐ 현재 줌 레벨에 맞게 모든 신호기 이름 표시
+    updateOverlayVisible();
+
+
+};
+  document.getElementById("copyBtn").onclick = function(){
+
+    if(clickLat==""){
+        alert("먼저 지도를 클릭하세요.");
+        return;
+    }
+
+    navigator.clipboard.writeText(clickLat + "," + clickLng);
+
+
+};
+  function routeTo(lat,lng,name){
+
+    const url =
+    "https://map.kakao.com/link/to/" +
+    encodeURIComponent(name) +
+    "," +
+    lat +
+    "," +
+    lng;
+
+    window.open(url,"_blank");
+
+}
+  function roadView(lat, lng){
+
+    const url =
+    "https://map.kakao.com/link/roadview/" +
+    lat + "," + lng;
+
+    window.open(url, "_blank");
+
+}
+  
+  document.getElementById("coordBtn").onclick = function(){
+
+    coordMode = !coordMode;
+
+    if(coordMode){
+      document.getElementById("coordBox").style.display = "none";
+        this.style.background="#4CAF50";
+        this.innerHTML="✅";
+}else{
+    this.style.background = "white";
+    this.innerHTML = "📌";
+    document.getElementById("coordBox").style.display = "none";
+    document.getElementById("copyBtn").style.display = "none";
+
+    if(clickMarker){
+        clickMarker.setMap(null);
+        clickMarker = null;
+    }
+}
+
+};
+let skyViewMode = false;
+
+document.getElementById("skyBtn").onclick = function(){
+
+    skyViewMode = !skyViewMode;
+
+    if(skyViewMode){
+
+        map.setMapTypeId(kakao.maps.MapTypeId.SKYVIEW);
+
+        this.style.background = "#4CAF50";
+        this.innerHTML = "🗺️";
+
+    }else{
+
+        map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
+
+        this.style.background = "white";
+        this.innerHTML = "✈️";
+    }
+
+};
+
+
+// ========================================
+// 거리재기
+// ========================================
+
+let distanceMode = false;
+
+let distancePoints = [];
+
+let distanceLine = null;
+
+let distanceMarkers = [];
+
+
+// 거리 계산 함수
+function getDistance(p1, p2){
+
+    const lat1 = p1.getLat();
+    const lon1 = p1.getLng();
+
+    const lat2 = p2.getLat();
+    const lon2 = p2.getLng();
+
+    const R = 6371000;
+
+    const dLat = (lat2-lat1) * Math.PI / 180;
+    const dLon = (lon2-lon1) * Math.PI / 180;
+
+    const a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) *
+        Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+
+    const c = 2 * Math.atan2(
+        Math.sqrt(a),
+        Math.sqrt(1-a)
+    );
+
+    return R * c;
+}
+
+
+// 거리재기 버튼
+document.getElementById("distanceBtn").onclick = function(){
+
+    distanceMode = !distanceMode;
+
+    if(distanceMode){
+
+        this.style.background = "#4CAF50";
+        this.innerHTML = "❌";
+
+        distancePoints = [];
+
+        document.getElementById("distanceBox").style.display = "block";
+        document.getElementById("distanceBox").innerHTML =
+            "📏 지도를 클릭하세요";
+
+    }else{
+
+        this.style.background = "white";
+        this.innerHTML = "📏";
+
+        clearDistance();
+
+    }
+
+};
+
+
+// 지도 클릭 시 거리 측정
+kakao.maps.event.addListener(map, "click", function(mouseEvent){
+
+    if(!distanceMode){
+        return;
+    }
+
+    const point = mouseEvent.latLng;
+
+    distancePoints.push(point);
+
+
+    // 측정 지점 표시
+    const marker = new kakao.maps.Marker({
+        map: map,
+        position: point
+    });
+
+    distanceMarkers.push(marker);
+
+
+    // 두 번째 점부터 선 표시
+    if(distancePoints.length >= 2){
+
+        if(distanceLine){
+            distanceLine.setMap(null);
+        }
+
+        distanceLine = new kakao.maps.Polyline({
+
+            map: map,
+
+            path: distancePoints,
+
+            strokeWeight: 4,
+
+            strokeColor: "#1976D2",
+
+            strokeOpacity: 0.8,
+
+            strokeStyle: "solid"
+
+        });
+
+
+        // 전체 거리 계산
+        let totalDistance = 0;
+
+        for(let i = 1; i < distancePoints.length; i++){
+
+            totalDistance += getDistance(
+                distancePoints[i-1],
+                distancePoints[i]
+            );
+
+        }
+
+
+        let text;
+
+        if(totalDistance >= 1000){
+
+            text =
+                "📏 거리 : " +
+                (totalDistance / 1000).toFixed(2) +
+                " km";
+
+        }else{
+
+            text =
+                "📏 거리 : " +
+                Math.round(totalDistance) +
+                " m";
+
+        }
+
+
+        document.getElementById("distanceBox").innerHTML =
+            text +
+            "<br><span style='font-size:11px;font-weight:normal;'>지점을 계속 클릭하세요</span>";
+
+    }else{
+
+        document.getElementById("distanceBox").innerHTML =
+            "📏 첫 번째 지점 선택<br>" +
+            "<span style='font-size:11px;font-weight:normal;'>두 번째 지점을 클릭하세요</span>";
+
+    }
+
+});
+
+
+// 거리 측정 초기화
+function clearDistance(){
+
+    distanceMode = false;
+
+    distancePoints = [];
+
+
+    if(distanceLine){
+
+        distanceLine.setMap(null);
+
+        distanceLine = null;
+
+    }
+
+
+    distanceMarkers.forEach(function(marker){
+
+        marker.setMap(null);
+
+    });
+
+    distanceMarkers = [];
+
+
+    document.getElementById("distanceBox").style.display = "none";
+
+}  
+</script>
+
+</body>
+
+</html>
