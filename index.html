@@ -260,64 +260,30 @@ document.getElementById("copyBtn").style.display="block";
 
 fetch("https://script.google.com/macros/s/AKfycbx0TULOBL3s6HgkSxsbkNKfXT2L7Dl9l6qIbOS7vBbCw4AjODXiFhK2aRej3o1_OlcL/exec")
 
-.then(res => res.json())
-.then(data => {
+ .then(response => {
+    if (!response.ok) {
+      throw new Error("HTTP 오류: " + response.status);
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (!Array.isArray(data)) {
+      throw new Error(
+        data.error || "장비 데이터 형식이 올바르지 않습니다."
+      );
+    }
 
     signalData = data;
-
-    markers = [];
-    overlays = [];
-
-    data.forEach(item => {
-
-    // ========================================
-    // 신호기의 실제 위치
-    // ========================================
-    const position = new kakao.maps.LatLng(
-        Number(item.lat),
-        Number(item.lng)
+    renderDevices(data);
+  })
+  .catch(error => {
+    console.error("장비 데이터 불러오기 실패:", error);
+    alert(
+      "장비 정보를 불러오지 못했습니다. " +
+      "웹 앱 배포 및 데이터 연결을 확인해 주세요."
     );
-
-
-    // ========================================
-    // ① 신호기 이름
-    // ========================================
-    const nameDiv = document.createElement("div");
-
-    nameDiv.style.cssText = `
-        background:white;
-        border:1px solid #777;
-        border-radius:5px;
-        padding:4px 8px;
-        font-size:13px;
-        font-weight:bold;
-        white-space:nowrap;
-        box-shadow:0 1px 4px rgba(0,0,0,.3);
-        cursor:pointer;
-    `;
-
-nameDiv.innerHTML =
-    `<span style="color:${item.codeColor || '#000000'}">${item.code}</span>` +
-    `<span style="color:#555555"> (</span>` +
-    `<span style="color:${item.groupColor || '#000000'}">${item.group}</span>` +
-    `<span style="color:#555555">)-</span>` +
-    `<span style="color:${item.nameColor || '#000000'}">${item.name}</span>`;
-
-    // ========================================
-    // ② 이름을 실제 좌표의 정확한 중심에 배치
-    // ========================================
-    const overlay = new kakao.maps.CustomOverlay({
-
-        position: position,
-
-        xAnchor: 0.5,
-        yAnchor: 0.5,
-
-        clickable: true,
-
-        content: nameDiv
-    });
-
+  });
+  
     overlay.setMap(map);
 
     overlays.push(overlay);
