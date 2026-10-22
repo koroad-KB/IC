@@ -258,7 +258,7 @@ document.getElementById("copyBtn").style.display="block";
     });
 });
 
-fetch("https://script.google.com/macros/s/AKfycbytqPQwPnamnFecskgat2-g2voejCo10r2OydAzFzkP7uRju7R0qjE6wM3ciSHlv-uB/exec")
+fetch("https://script.google.com/macros/s/AKfycbx0TULOBL3s6HgkSxsbkNKfXT2L7Dl9l6qIbOS7vBbCw4AjODXiFhK2aRej3o1_OlcL/exec")
 
 .then(res => res.json())
 .then(data => {
@@ -345,11 +345,11 @@ const infowindow = new kakao.maps.InfoWindow({
             </div>
 
             <div>
-                <b>지역</b> : ${item.region || "-"}<br>
-                <b>지자체</b> : ${item.local || "-"}<br>
-                <b>경찰서</b> : ${item.police || "-"}<br>
+                <b>장비종류</b> : ${item.region || "-"}<br>
+                <b>단속속도</b> : ${item.local || "-"}<br>
+                <b>검지방식</b> : ${item.police || "-"}<br>
                 <b>보호구역</b> : ${item.protectedArea || "-"}<br>
-                <b>스마트교차로</b> : ${item.smart || "-"}
+                <b>최초운영일</b> : ${item.smart || "-"}
             </div>
 
             <br>
