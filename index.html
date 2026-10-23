@@ -424,7 +424,7 @@ function renderDevices(data) {
     kakao.maps.event.addListener(map, "zoom_changed", updateOverlayVisible);
 }
 
-fetch("https://script.google.com/macros/s/AKfycbzpsyyeUPutcNyb-c3ikCCTDXd8v73ChwZu7wKOeshQaJTSnEQzz_1QREmqz3N2y8yk/exec")
+fetch("https://script.google.com/macros/s/AKfycbx0VOsZRl8WOiS0Iz23qeo8b-2yJwpOt50qEKN5iY_fZxTAwylf3OaMWGM8y5_KAhnRYA/exec")
     .then(response => {
         if (!response.ok) throw new Error("HTTP 오류: " + response.status);
         return response.json();
